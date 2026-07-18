@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>SafeReport — Prototype</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F0F2F5;
+    --panel: #FFFFFF;
+    --panel-2: #F0F2F5;
+    --border: #E4E6EB;
+    --text: #1C1E21;
+    --muted: #65676B;
+    --blue: #1877F2;
+    --blue-dim: #E7F0FF;
+    --alert: #E0245E;
+    --alert-dim: #FDE8EE;
+    --signal: #31A24C;
+    --signal-dim: #E9F6EC;
+    --amber: #F5A623;
+    --amber-dim: #FEF3E0;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    height:100vh;
+    overflow:hidden;
+  }
+  #app-shell{display:flex; height:100%; width:100%;}
+
+  /* LOGIN SCREEN */
+  #login-screen{
+    position:fixed; inset:0; z-index:3000; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#0F2647,#1877F2 55%,#3B95FF);
+  }
+  .login-card{
+    background:#fff; width:420px; max-width:90vw; border-radius:16px; padding:32px 30px;
+    box-shadow:0 30px 80px rgba(0,0,0,0.35); animation:popIn .2s ease;
+  }
+  .login-logo{display:flex; align-items:center; gap:10px; font-family:var(--display); font-weight:700; font-size:20px; color:var(--blue); margin-bottom:4px;}
+  .login-sub{font-size:13px; color:var(--muted); margin-bottom:20px;}
+  .login-options{display:flex; flex-direction:column; gap:10px;}
+  .login-opt{
+    display:flex; align-items:center; gap:12px; border:1.5px solid var(--border); border-radius:10px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .login-opt:hover{border-color:var(--blue); background:var(--blue-dim);}
+  .login-opt.sel{border-color:var(--blue); background:var(--blue-dim); box-shadow:0 0 0 3px rgba(24,119,242,0.15);}
+  .lo-ic{font-size:22px; width:36px; text-align:center; flex-shrink:0;}
+  .lo-title{font-weight:700; font-size:14px;}
+  .lo-desc{font-size:11.5px; color:var(--muted); margin-top:1px;}
+  .login-back{font-size:12.5px; color:var(--blue); cursor:pointer; font-weight:600; margin-bottom:4px;}
+  .login-back:hover{text-decoration:underline;}
+  .signup-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .signup-row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+  .signup-row-3 select{background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:9px 6px; font-size:12.5px; color:var(--text);}
+  .signup-gender{display:flex; gap:14px; font-size:12.5px; font-weight:600; color:var(--text);}
+  .signup-gender label{display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:500;}
+
+  /* SESSION BOX (sidebar) */
+  .session-box{display:flex; flex-direction:column; gap:10px; background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:11px; margin-bottom:20px;}
+  .session-box-row{display:flex; align-items:center; gap:10px;}
+  .session-ava{width:32px; height:32px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12.5px; flex-shrink:0;}
+  .session-role{font-weight:700; font-size:13px;}
+  .admin-tag{font-size:9.5px; font-weight:700; color:var(--blue); background:var(--blue-dim); padding:1px 6px; border-radius:8px; margin-left:3px;}
+  .admin-viewswitch{border-top:1px solid var(--border); padding-top:9px;}
+  .avs-label{font-size:9.5px; color:var(--muted); text-transform:uppercase; font-weight:700; letter-spacing:.3px; margin-bottom:6px;}
+  .avs-row{display:flex; gap:4px;}
+  .avs-btn{flex:1; background:#fff; border:1px solid var(--border); color:var(--muted); font-size:10.5px; font-weight:700; padding:6px 2px; border-radius:6px; cursor:pointer;}
+  .avs-btn.on{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .session-logout{font-size:11px; color:var(--blue); cursor:pointer; font-weight:600; margin-top:1px;}
+  .session-logout:hover{text-decoration:underline;}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:#C7CBD1; border-radius:4px;}
+  button, .chip, .tag.loc, .card, .nav-btn{transition: all .15s ease;}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  @keyframes popIn{from{opacity:0; transform:scale(.96);} to{opacity:1; transform:scale(1);}}
+  @keyframes countGlow{0%,100%{opacity:1;}50%{opacity:.55;}}
+  #view > *{animation: fadeUp .35s ease both;}
+  .card{animation: fadeUp .4s ease both;}
+
+  /* SIDEBAR */
+  #sidebar{
+    width:230px; min-width:230px;
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    display:flex; flex-direction:column;
+    padding:20px 14px;
+  }
+  .logo{
+    font-family:var(--display); font-weight:700; font-size:20px;
+    letter-spacing:0.2px; margin-bottom:4px; display:flex; align-items:center; gap:9px;
+    color:var(--blue);
+  }
+  .logo svg{flex-shrink:0;}
+  .logo .dot{display:none;}
+  .tagline{font-size:11px; color:var(--muted); font-family:var(--mono); margin-bottom:24px;}
+  .role-switch{
+    display:flex; background:var(--panel-2); border:1px solid var(--border);
+    border-radius:20px; padding:3px; margin-bottom:22px; font-size:11.5px;
+  }
+  .role-switch button{
+    flex:1; background:none; border:none; color:var(--muted); padding:7px 2px;
+    border-radius:17px; cursor:pointer; font-family:var(--body); font-weight:600;
+  }
+  .role-switch button.active{background:var(--blue); color:#fff;}
+  nav{display:flex; flex-direction:column; gap:2px; flex:1;}
+  nav button{
+    text-align:left; background:none; border:none; color:var(--text);
+    padding:10px 12px; border-radius:8px; font-size:14px; font-family:var(--body); font-weight:600;
+    cursor:pointer; display:flex; align-items:center; gap:10px; position:relative;
+  }
+  nav button.active{background:var(--blue-dim); color:var(--blue);}
+  nav button.active::before{content:''; position:absolute; left:-14px; top:8px; bottom:8px; width:3px; background:var(--blue); border-radius:0 3px 3px 0;}
+  nav button:hover{background:var(--panel-2); transform:translateX(2px);}
+  nav .badge{margin-left:auto; background:var(--alert); color:#fff; font-family:var(--mono);
+    font-size:10px; padding:1px 6px; border-radius:10px; font-weight:600;}
+  .sidebar-foot{font-size:10.5px; color:var(--muted); font-family:var(--mono); border-top:1px solid var(--border); padding-top:12px; line-height:1.5;}
+
+  /* MAIN */
+  #main{flex:1; display:flex; flex-direction:column; overflow:hidden;}
+  header{
+    padding:16px 26px; border-bottom:1px solid var(--border); background:var(--panel);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  header h1{font-family:var(--display); font-size:19px; font-weight:700;}
+  header .sub{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  #statbar{
+    display:flex; gap:0; background:linear-gradient(90deg,#12294F,#1877F2 60%,#3B95FF);
+    padding:12px 26px; color:#fff;
+  }
+  #statbar .stat-mini{flex:1; text-align:center; border-right:1px solid rgba(255,255,255,0.18);}
+  #statbar .stat-mini:last-child{border-right:none;}
+  #statbar .stat-mini .v{font-family:var(--display); font-size:19px; font-weight:700; letter-spacing:.3px;}
+  #statbar .stat-mini .l{font-size:10.5px; opacity:.85; font-weight:600; margin-top:1px; text-transform:uppercase; letter-spacing:.4px;}
+  #content{flex:1; overflow-y:auto; padding:22px 26px; display:flex; gap:22px;}
+  #view{flex:1; min-width:0;}
+
+  /* TICKER */
+  #ticker{
+    width:270px; min-width:270px; background:var(--panel);
+    border:1px solid var(--border); border-radius:10px; padding:14px;
+    display:flex; flex-direction:column; height:fit-content; max-height:100%;
+    box-shadow:0 1px 2px rgba(0,0,0,0.06);
+  }
+  #ticker h3{font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; gap:6px;}
+  #ticker h3 .live{width:6px;height:6px;border-radius:50%;background:var(--signal); animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.25;}}
+  #ticker-list{overflow-y:auto; display:flex; flex-direction:column; gap:9px;}
+  .tick{
+    border-left:3px solid var(--blue); padding:6px 8px 6px 10px; font-size:12px; border-radius:0 6px 6px 0;
+  }
+  .tick:hover{background:var(--panel-2);}
+  .tick.official{border-left-color:var(--alert);}
+  .tick .t-time{font-family:var(--mono); font-size:10px; color:var(--muted); display:flex; align-items:center; gap:5px;}
+  .tick .t-src{background:var(--alert); color:#fff; font-weight:700; padding:1px 5px; border-radius:3px; font-size:9px;}
+  .tick .t-title{font-weight:600; margin-top:2px;}
+
+  /* INTEGRATION BANNER */
+  .integ-banner{
+    background:linear-gradient(90deg, var(--blue-dim), #fff);
+    border:1px solid var(--blue); border-radius:10px; padding:12px 16px;
+    margin-bottom:16px; font-size:12.5px; color:var(--text); display:flex; gap:10px; align-items:flex-start;
+  }
+  .integ-banner b{color:var(--blue);}
+  .partner-row{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .partner-pill{background:#fff; border:1px solid var(--border); border-radius:16px; padding:4px 11px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:5px;}
+  .partner-pill .ok{width:6px;height:6px;border-radius:50%;background:var(--signal);}
+
+  /* REAL NEWS (Abidjan.net RSS) */
+  .real-news-box{background:#fff; border:1px solid #FDE0A8; border-radius:10px; padding:14px 16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,0.06);}
+  .real-news-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:12px; font-weight:700; color:#B87A00;}
+  .real-news-head .live2{width:6px; height:6px; border-radius:50%; background:#E0245E; animation:pulse 1.6s infinite;}
+  .rn-item{display:flex; gap:10px; padding:8px 0; border-top:1px solid var(--border);}
+  .rn-item:first-child{border-top:none; padding-top:0;}
+  .rn-tag{flex-shrink:0; background:var(--amber-dim); color:#B87A00; font-size:9.5px; font-weight:700; padding:3px 7px; border-radius:5px; height:fit-content; margin-top:1px;}
+  .rn-title{font-size:13px; font-weight:600; line-height:1.4;}
+  .rn-title a{color:var(--text); text-decoration:none;}
+  .rn-title a:hover{color:var(--blue); text-decoration:underline;}
+  .rn-date{font-size:10.5px; color:var(--muted); margin-top:2px;}
+
+  /* CARDS / FEED */
+  .filters{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .chip{
+    background:var(--panel); border:1px solid var(--border); color:var(--muted);
+    padding:6px 13px; border-radius:20px; font-size:12px; cursor:pointer; font-weight:600;
+  }
+  .chip.active{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,0.06);
+  }
+  .card:hover{box-shadow:0 6px 20px rgba(0,0,0,0.08); transform:translateY(-1px);}
+  .card.official{border-color:#F3C8D4; background:linear-gradient(180deg,#fff, #FFFAFB);}
+  .card-top{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .avatar{width:36px;height:36px;border-radius:50%; background:var(--blue-dim); display:flex;align-items:center;justify-content:center; font-family:var(--display); font-weight:700; font-size:13px; color:var(--blue);}
+  .avatar.official{background:var(--alert-dim); color:var(--alert);}
+  .card-name{font-weight:700; font-size:14px; display:flex; align-items:center; gap:5px;}
+  .verified{color:var(--blue); font-size:12px;}
+  .card-meta{font-size:11.5px; color:var(--muted);}
+  .status{margin-left:auto; font-family:var(--body); font-size:11px; padding:4px 10px; border-radius:20px; font-weight:700; letter-spacing:0.2px;}
+  .status.nouveau{background:var(--alert-dim); color:var(--alert);}
+  .status.encours{background:var(--amber-dim); color:#B87A00;}
+  .status.traite{background:var(--signal-dim); color:var(--signal);}
+  .card-body-text{font-size:14px; line-height:1.55; color:var(--text); margin-bottom:10px;}
+  .card-tags{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
+  .tag{font-size:11px; color:var(--muted); background:var(--panel-2); padding:3px 9px; border-radius:6px; font-weight:500;}
+  .tag.loc{color:var(--blue); background:var(--blue-dim); font-weight:600; cursor:pointer;}
+  .card-actions{display:flex; gap:6px; border-top:1px solid var(--border); padding-top:8px;}
+  .card-actions button{flex:1; background:none;border:none;color:var(--muted); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; font-family:var(--body); font-weight:600; padding:7px; border-radius:6px;}
+  .card-actions button:hover{background:var(--panel-2); color:var(--text);}
+  .card-actions button.liked{color:var(--blue);}
+
+  /* COMMENTS */
+  .comments-box{margin-top:10px; padding-top:10px; border-top:1px solid var(--border);}
+  .comment{display:flex; gap:9px; margin-bottom:10px;}
+  .c-avatar{width:28px;height:28px;border-radius:50%; background:var(--panel-2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--muted);}
+  .c-bubble{background:var(--panel-2); border-radius:14px; padding:8px 12px; font-size:13px; line-height:1.45; flex:1;}
+  .c-bubble .c-name{font-weight:700; font-size:12.5px; margin-bottom:1px;}
+  .c-meta-row{display:flex; gap:12px; margin-top:3px; margin-left:12px; font-size:11px; color:var(--muted); font-weight:600;}
+  .c-meta-row span{cursor:pointer;}
+  .add-comment{display:flex; gap:9px; margin-top:10px; align-items:center;}
+  .add-comment input{flex:1; background:var(--panel-2); border:1px solid var(--border); border-radius:16px; padding:8px 14px; font-size:13px; font-family:var(--body); color:var(--text);}
+  .add-comment button{background:var(--blue); color:#fff; border:none; border-radius:16px; padding:8px 16px; font-size:12.5px; font-weight:700; cursor:pointer;}
+
+  /* TRAFFIC */
+  .traffic-item{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; gap:14px; box-shadow:0 1px 2px rgba(0,0,0,0.06);}
+  .traffic-item:hover{transform:translateX(3px); box-shadow:0 6px 16px rgba(0,0,0,0.08);}
+  .sev-dot{width:12px;height:12px;border-radius:50%; flex-shrink:0;}
+  .sev-fluide{background:var(--signal);}
+  .sev-modere{background:var(--amber);}
+  .sev-dense{background:var(--alert);}
+  .traffic-name{font-weight:700; font-size:14px;}
+  .traffic-meta{font-size:12px; color:var(--muted); margin-top:2px;}
+  .sev-label{margin-left:auto; font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:20px;}
+  .sev-label.sev-fluide{background:var(--signal-dim); color:var(--signal);}
+  .sev-label.sev-modere{background:var(--amber-dim); color:#B87A00;}
+  .sev-label.sev-dense{background:var(--alert-dim); color:var(--alert);}
+  .quick-report{background:var(--blue-dim); border:1px dashed var(--blue); border-radius:10px; padding:14px 16px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .quick-report div b{color:var(--blue);}
+  .quick-report button{background:var(--blue); color:#fff; border:none; padding:9px 16px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;}
+
+  /* FORM */
+  .form-box{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:22px; max-width:560px; box-shadow:0 1px 2px rgba(0,0,0,0.06);}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12.5px; color:var(--text); margin-bottom:6px; font-weight:700;}
+  .field input, .field select, .field textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:8px; font-family:var(--body); font-size:14px;
+  }
+  .field input:focus, .field textarea:focus{outline:2px solid var(--blue); border-color:var(--blue);}
+  .field textarea{resize:vertical; min-height:80px;}
+  .cat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .cat-opt{border:1px solid var(--border); background:var(--panel-2); border-radius:8px; padding:10px 6px; text-align:center; font-size:12px; cursor:pointer; color:var(--muted); font-weight:600;}
+  .cat-opt.sel{border-color:var(--blue); color:var(--blue); background:var(--blue-dim);}
+  .btn-primary{background:var(--blue); color:#fff; border:none; padding:11px 22px; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; font-family:var(--body); box-shadow:0 2px 8px rgba(24,119,242,0.35);}
+  .btn-primary:hover{background:#166FE0; transform:translateY(-1px); box-shadow:0 4px 14px rgba(24,119,242,0.45);}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:6px;}
+
+  /* MAP */
+  #map{height:100%; min-height:520px; border-radius:12px; border:1px solid var(--border); z-index: 0; box-shadow:0 2px 10px rgba(0,0,0,0.08);}
+  .map-legend{
+    position:absolute; top:16px; right:16px; z-index:400; background:#fff; border:1px solid var(--border);
+    border-radius:10px; padding:12px 14px; box-shadow:0 4px 16px rgba(0,0,0,0.12); min-width:170px;
+  }
+  .ml-title{font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px;}
+  .ml-row{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; margin-bottom:6px;}
+  .ml-line{width:16px; height:5px; border-radius:3px; display:inline-block;}
+  .ml-dot{width:9px; height:9px; border-radius:50%; display:inline-block;}
+  .ml-sep{height:1px; background:var(--border); margin:6px 0 8px;}
+
+  /* GPS-style control panel */
+  .gps-panel{
+    position:absolute; top:16px; left:16px; z-index:400; background:#fff; border-radius:12px;
+    box-shadow:0 6px 22px rgba(0,0,0,0.16); width:300px; max-width:80vw; overflow:hidden;
+    font-family:var(--body);
+  }
+  .gps-search{display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border);}
+  .gps-search input{flex:1; border:none; outline:none; font-size:13.5px; font-family:var(--body); color:var(--text);}
+  .gps-search button{background:var(--blue); color:#fff; border:none; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:14px; flex-shrink:0;}
+  .gps-tabs{display:flex; border-bottom:1px solid var(--border);}
+  .gps-tab{flex:1; text-align:center; padding:9px 4px; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent;}
+  .gps-tab.active{color:var(--blue); border-bottom-color:var(--blue);}
+  .gps-body{padding:12px 14px;}
+  .gps-body.hidden{display:none;}
+  .poi-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:7px;}
+  .poi-chip{
+    border:1px solid var(--border); background:var(--panel-2); border-radius:8px; padding:9px 4px;
+    text-align:center; font-size:10.5px; font-weight:700; cursor:pointer; color:var(--muted); line-height:1.6;
+  }
+  .poi-chip .ic{font-size:16px; display:block;}
+  .poi-chip.on{background:var(--blue-dim); border-color:var(--blue); color:var(--blue);}
+  .route-field{display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; margin-bottom:8px;}
+  .route-field input{flex:1; border:none; background:none; outline:none; font-size:12.5px;}
+  .route-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .route-result{background:var(--blue-dim); border-radius:8px; padding:9px 11px; font-size:12.5px; font-weight:600; color:var(--blue); margin-top:6px;}
+  .gps-status{font-size:11.5px; color:var(--muted); margin-top:6px; min-height:14px;}
+  .report-pin{
+    width:30px; height:30px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.35); border:2px solid #fff;
+  }
+  .report-pin span{transform:rotate(45deg); font-size:14px;}
+  .pulse-icon{position:relative;}
+  .pulse-core{width:12px; height:12px; border-radius:50%; background:#E0245E; border:2px solid #fff; position:absolute; top:5px; left:5px; box-shadow:0 1px 4px rgba(0,0,0,0.3);}
+  .pulse-ring{width:22px; height:22px; border-radius:50%; background:rgba(224,36,94,0.35); position:absolute; top:0; left:0; animation:ringPulse 1.6s ease-out infinite;}
+  @keyframes ringPulse{0%{transform:scale(0.4); opacity:0.9;}100%{transform:scale(1.6); opacity:0;}}
+
+  /* DASHBOARD */
+  .stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;}
+  .stat{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.06);}
+  .stat:hover{transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.08);}
+  .stat .num{font-family:var(--display); font-size:26px; font-weight:700;}
+  .stat .lbl{font-size:11.5px; color:var(--muted); font-weight:600; margin-top:4px;}
+  table{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,0.06);}
+  th{text-align:left; font-size:11px; color:var(--muted); font-weight:700; padding:10px 14px; border-bottom:1px solid var(--border); background:var(--panel-2);}
+  td{padding:11px 14px; font-size:13.5px; border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  select.status-select{background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:12px; padding:5px 8px; border-radius:6px; font-weight:600;}
+
+  /* NOTIFICATIONS */
+  .notif{display:flex; gap:12px; padding:13px 0; border-bottom:1px solid var(--border);}
+  .notif .dot2{width:8px;height:8px;border-radius:50%;margin-top:5px; flex-shrink:0;}
+  .notif .txt{font-size:13.5px; line-height:1.5;}
+  .notif .txt b{color:var(--text);}
+  .notif .time{font-size:11px; color:var(--muted); margin-top:3px;}
+
+  .section-title{font-family:var(--display); font-weight:700; font-size:16px; margin-bottom:14px;}
+  .empty{color:var(--muted); font-size:13px; padding:30px; text-align:center; border:1px dashed var(--border); border-radius:10px;}
+
+  /* DATABASE VIEW */
+  .access-badge{
+    display:inline-flex; align-items:center; gap:6px; background:#FEF3E0; color:#B87A00;
+    border:1px solid #F5DFAE; font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:20px; margin-bottom:16px;
+  }
+  .db-filters{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,0.06);}
+  .db-filters select, .db-filters input{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:7px; padding:8px 10px; font-size:12.5px; font-family:var(--body); color:var(--text);
+  }
+  .db-filters input{flex:1; min-width:160px;}
+  .db-export{background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-weight:700; font-size:12.5px; padding:8px 14px; border-radius:7px; cursor:pointer;}
+  .db-export:hover{background:var(--border);}
+  .chart-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:14px; margin-bottom:20px;}
+  .chart-card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.06);}
+  .chart-card h4{font-size:12.5px; font-weight:700; margin-bottom:12px; color:var(--text);}
+  .chart-wrap{position:relative; height:230px; width:100%;}
+  .chart-wrap.tall{height:260px;}
+  .chart-row-full{grid-column:1 / -1;}
+  .db-table-wrap{max-height:420px; overflow-y:auto; border-radius:10px; border:1px solid var(--border);}
+  .db-table-wrap table{border:none; border-radius:0;}
+  .db-table-wrap th{position:sticky; top:0;}
+
+  /* Leaflet popup override */
+  .sr-popup .leaflet-popup-content-wrapper{border-radius:10px; padding:2px; box-shadow:0 6px 20px rgba(0,0,0,0.18);}
+  .sr-popup .leaflet-popup-content{margin:10px 12px; font-family:var(--body);}
+  .pop-title{font-weight:700; font-size:13.5px; margin-bottom:3px;}
+  .pop-row{font-size:12px; color:#65676B; margin-bottom:6px;}
+  .pop-badge{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px;}
+  .pop-time{font-size:10.5px; color:#8A8D91; margin-top:5px;}
+
+  /* DETAIL MODAL */
+  #modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000;
+    display:none; align-items:center; justify-content:center; animation:popIn .15s ease;
+  }
+  #modal-overlay.open{display:flex;}
+  #modal-box{
+    background:#fff; width:520px; max-width:92vw; max-height:86vh; overflow-y:auto;
+    border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,0.35); animation:popIn .18s ease;
+  }
+  #modal-close{
+    position:sticky; top:0; float:right; background:var(--panel-2); border:none; width:30px; height:30px;
+    border-radius:50%; font-size:15px; cursor:pointer; margin:12px 12px 0 0; color:var(--muted);
+  }
+  #modal-close:hover{background:var(--border);}
+  #modal-content{padding:0 22px 22px;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="34" height="34" viewBox="0 0 26 26" fill="none">
+        <path d="M13 2 L23 6.5 V13 C23 19 18.5 23 13 24.5 C7.5 23 3 19 3 13 V6.5 Z" fill="#1877F2"/>
+        <path d="M8.5 13.3 L11.4 16.2 L17.7 9.6" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>SAFEREPORT</div>
+    </div>
+
+    <!-- ÉTAPE 1 : choix du type de compte -->
+    <div id="login-step-role">
+      <div class="login-sub">Choisissez votre type de compte pour continuer</div>
+      <div class="login-options">
+        <div class="login-opt" onclick="selectLoginRole('citoyen')">
+          <div class="lo-ic">🙋</div>
+          <div><div class="lo-title">Citoyen</div><div class="lo-desc">Créez votre compte : fil d'actualité, signalements, carte</div></div>
+        </div>
+        <div class="login-opt" onclick="selectLoginRole('autorite')">
+          <div class="lo-ic">🛡️</div>
+          <div><div class="lo-title">Autorité</div><div class="lo-desc">Police, Pompiers, Police Secours — accès professionnel</div></div>
+        </div>
+        <div class="login-opt" onclick="selectLoginRole('admin')">
+          <div class="lo-ic">⚙️</div>
+          <div><div class="lo-title">Administrateur</div><div class="lo-desc">Gestion complète de la plateforme, accès à toutes les vues</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 2A : inscription citoyen façon Facebook -->
+    <div id="login-step-signup" style="display:none;">
+      <div class="login-back" onclick="backToRoleChoice()">← Retour</div>
+      <div class="login-sub" style="margin-top:10px;">Créer un compte citoyen</div>
+      <div class="signup-row">
+        <div class="field" style="margin-bottom:10px;"><input type="text" id="su-first" placeholder="Prénom"></div>
+        <div class="field" style="margin-bottom:10px;"><input type="text" id="su-last" placeholder="Nom"></div>
+      </div>
+      <div class="field" style="margin-bottom:10px;"><input type="text" id="su-contact" placeholder="Numéro de téléphone ou e-mail"></div>
+      <div class="field" style="margin-bottom:10px;"><input type="password" id="su-pass" placeholder="Nouveau mot de passe"></div>
+      <div class="field" style="margin-bottom:6px;">
+        <label style="text-transform:none; font-weight:600; color:var(--muted);">Date de naissance</label>
+        <div class="signup-row-3">
+          <select id="su-day"></select>
+          <select id="su-month">
+            <option value="1">Janv.</option><option value="2">Févr.</option><option value="3">Mars</option>
+            <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+            <option value="7">Juil.</option><option value="8">Août</option><option value="9">Sept.</option>
+            <option value="10">Oct.</option><option value="11">Nov.</option><option value="12">Déc.</option>
+          </select>
+          <select id="su-year"></select>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label style="text-transform:none; font-weight:600; color:var(--muted);">Genre</label>
+        <div class="signup-gender">
+          <label><input type="radio" name="su-gender" value="F"> Femme</label>
+          <label><input type="radio" name="su-gender" value="H"> Homme</label>
+          <label><input type="radio" name="su-gender" value="P" checked> Personnalisé</label>
+        </div>
+      </div>
+      <div class="hint" id="signup-error" style="color:var(--alert); display:none;">Merci de renseigner au moins votre prénom, nom, un contact et un mot de passe.</div>
+      <button class="btn-primary" style="width:100%; margin-top:8px;" onclick="submitCitizenSignup()">S'inscrire</button>
+      <div class="hint" style="margin-top:10px;">En cliquant sur S'inscrire, vous créez un compte de démonstration SafeReport.</div>
+    </div>
+
+    <!-- ÉTAPE 2B : mot de passe professionnel (Autorité / Admin) -->
+    <div id="login-password-box" style="display:none;">
+      <div class="login-back" onclick="backToRoleChoice()">← Retour</div>
+      <div class="field" style="margin-top:12px;">
+        <label id="login-pw-label">Mot de passe professionnel</label>
+        <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')confirmLogin()">
+      </div>
+      <div class="hint" id="login-error" style="color:var(--alert); display:none;">Mot de passe incorrect.</div>
+      <button class="btn-primary" style="width:100%; margin-top:6px;" onclick="confirmLogin()">Se connecter</button>
+    </div>
+
+    <div class="hint" style="margin-top:16px; text-align:center;">Prototype de démonstration — aucune donnée réelle n'est utilisée.</div>
+  </div>
+</div>
+
+<div id="app-shell" style="display:none;">
+<div id="sidebar">
+  <div class="logo">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+      <path d="M13 2 L23 6.5 V13 C23 19 18.5 23 13 24.5 C7.5 23 3 19 3 13 V6.5 Z" fill="#1877F2"/>
+      <path d="M13 4.3 L20.6 7.7 V13 C20.6 17.8 17.2 20.9 13 22.2 C8.8 20.9 5.4 17.8 5.4 13 V7.7 Z" fill="#fff" opacity="0.15"/>
+      <path d="M8.5 13.3 L11.4 16.2 L17.7 9.6" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    SAFEREPORT
+  </div>
+  <div class="tagline">CÔTE D'IVOIRE · PROTOTYPE</div>
+
+  <div class="session-box" id="session-box-inner"></div>
+
+  <nav id="nav"></nav>
+
+  <div class="sidebar-foot">Prototype local · données<br>en mémoire, non persistées.</div>
+</div>
+
+<div id="main">
+  <header>
+    <div>
+      <h1 id="page-title">Fil d'actualité</h1>
+      <div class="sub" id="page-sub">Publications et signalements de la communauté</div>
+    </div>
+  </header>
+  <div id="statbar">
+    <div class="stat-mini"><div class="v" id="stat-users">0</div><div class="l">Citoyens actifs</div></div>
+    <div class="stat-mini"><div class="v" id="stat-resolved">0</div><div class="l">Signalements résolus</div></div>
+    <div class="stat-mini"><div class="v" id="stat-time">—</div><div class="l">Temps de réponse moyen</div></div>
+    <div class="stat-mini"><div class="v" id="stat-partners">0</div><div class="l">Institutions partenaires</div></div>
+  </div>
+  <div id="content">
+    <div id="view"></div>
+    <div id="ticker">
+      <h3><span class="live"></span>Flux en direct</h3>
+      <div id="ticker-list"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box">
+    <button id="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ---------- STATE ----------
+let role = 'citoyen';
+let currentView = 'feed';
+let activeFilter = 'tous';
+let selectedCat = null;
+
+const categories = ['Accident','Incendie','Inondation','Agression','Embouteillage','Objet perdu','Route impraticable','Coupure électricité','Alerte sanitaire'];
+
+const partners = [
+  {name:'Police Nationale', init:'PN'},
+  {name:'Sapeurs-Pompiers', init:'SP'},
+  {name:'Police Secours', init:'PS'},
+];
+
+let reports = [
+  {id:'SR-1042', name:'Aïcha K.', init:'AK', title:'Feu de brousse près du quartier Riviera 3', cat:'Incendie', status:'encours', time:'il y a 12 min', likes:34, comments:8, lat:5.359, lng:-3.966, address:'Riviera 3, Cocody, Abidjan', desc:"Un départ de feu s'est propagé rapidement près de la zone boisée. Les pompiers ont été alertés.", official:false,
+    commentList:[
+      {name:'Moussa D.', init:'MD', text:'Merci pour l\'alerte, j\'habite juste à côté !', time:'11 min'},
+      {name:'Sapeurs-Pompiers', init:'SP', text:'Équipe en route, merci de rester à distance.', time:'8 min', official:true},
+      {name:'Fatou C.', init:'FC', text:'Le feu semble sous contrôle maintenant.', time:'3 min'},
+    ]},
+  {id:'SR-1041', name:'Sapeurs-Pompiers', init:'SP', title:'Intervention en cours — accident de la route Boulevard VGE', cat:'Accident', status:'encours', time:'il y a 20 min', likes:12, comments:3, lat:5.347, lng:-3.987, address:'Boulevard VGE, Marcory, Abidjan', desc:"Équipe dépêchée sur place. Circulation ralentie, merci d'éviter la zone.", official:true,
+    commentList:[
+      {name:'Yves K.', init:'YK', text:'Confirmé, gros ralentissement dans les deux sens.', time:'15 min'},
+      {name:'Nadège A.', init:'NA', text:'Un itinéraire de contournement est-il prévu ?', time:'10 min'},
+    ]},
+  {id:'SR-1040', name:'Ibrahim T.', init:'IT', title:'Route impraticable après les pluies — Yopougon', cat:'Route impraticable', status:'traite', time:'il y a 1 h', likes:56, comments:14, lat:5.325, lng:-4.075, address:'Carrefour Gesco, Yopougon, Abidjan', desc:"La voie principale est inondée depuis hier soir, contournement conseillé par la voie secondaire.", official:false,
+    commentList:[
+      {name:'Ange B.', init:'AB', text:'C\'est en train de sécher, ça passe doucement.', time:'40 min'},
+    ]},
+  {id:'SR-1039', name:'Police Nationale', init:'PN', title:'Appel à témoins — vol à main armée à Adjamé', cat:'Agression', status:'encours', time:'il y a 2 h', likes:21, comments:6, lat:5.34, lng:-4.02, address:'Marché d\'Adjamé, Abidjan', desc:"Toute personne ayant des informations est priée de contacter le commissariat le plus proche.", official:true,
+    commentList:[
+      {name:'Kader S.', init:'KS', text:'J\'ai vu quelque chose, je vous contacte en message privé.', time:'1 h'},
+    ]},
+  {id:'SR-1038', name:'Police Secours', init:'PS', title:'Alerte enlèvement signalée à Marcory', cat:'Agression', status:'nouveau', time:'il y a 3 h', likes:8, comments:2, lat:5.30, lng:-3.99, address:'Marcory Résidentiel, Abidjan', desc:"Diffusion automatique reçue via le canal d'urgence Police Secours.", official:true,
+    commentList:[]},
+];
+let nextIdNum = 1043;
+
+// ---------- BASE DE DONNÉES DES INCIDENTS (historique, accès restreint) ----------
+const authors = ['Aïcha K.','Ibrahim T.','Fatou C.','Yves K.','Nadège A.','Ange B.','Kader S.','Moussa D.','Ariane G.','Bakary O.','Chantal N.','Désiré A.'];
+const dbStatuses = ['nouveau','encours','traite'];
+let allIncidentsDB = [];
+(function seedDatabase(){
+  // reprend les signalements déjà visibles dans le fil
+  reports.forEach(r=>allIncidentsDB.push({id:r.id, title:r.title, cat:r.cat, status:r.status, author:r.name, official:r.official, daysAgo:0, address:r.address, resTime: r.status==='traite' ? 20+Math.floor(Math.random()*90) : null}));
+  // génère un historique réaliste sur 30 jours pour alimenter filtres et statistiques
+  let n = 1200;
+  for(let i=0;i<70;i++){
+    const cat = categories[Math.floor(Math.random()*categories.length)];
+    const status = dbStatuses[Math.floor(Math.random()*dbStatuses.length)];
+    const daysAgo = Math.floor(Math.random()*90);
+    const official = Math.random()<0.22;
+    const author = official ? partners[Math.floor(Math.random()*partners.length)].name : authors[Math.floor(Math.random()*authors.length)];
+    allIncidentsDB.push({
+      id:'SR-'+(n++), title:`${cat} signalé — zone ${['Cocody','Yopougon','Marcory','Adjamé','Treichville','Abobo','Plateau','Koumassi'][Math.floor(Math.random()*8)]}`,
+      cat, status, author, official, daysAgo,
+      address: ['Cocody, Abidjan','Yopougon, Abidjan','Marcory, Abidjan','Adjamé, Abidjan','Treichville, Abidjan','Abobo, Abidjan','Plateau, Abidjan','Koumassi, Abidjan'][Math.floor(Math.random()*8)],
+      resTime: status==='traite' ? 15+Math.floor(Math.random()*170) : null
+    });
+  }
+})();
+let dbPeriod = '1', dbCat = 'tous', dbCommune = 'toutes', dbSearch = '';
+const dbCommunesList = ['toutes','Cocody','Yopougon','Marcory','Adjamé','Treichville','Abobo','Plateau','Koumassi'];
+
+// ---------- TRAFIC ----------
+let trafficSpots = [
+  {name:'Pont Félix Houphouët-Boigny', zone:'Plateau ↔ Treichville', sev:'dense', lat:5.318, lng:-4.02, updated:'il y a 4 min',
+    path:[[5.3235,-4.0215],[5.320,-4.0208],[5.316,-4.020],[5.312,-4.0193]]},
+  {name:'Autoroute du Nord — Williamsville', zone:'Sens Adjamé → Abobo', sev:'dense', lat:5.37, lng:-4.02, updated:'il y a 6 min',
+    path:[[5.352,-4.023],[5.360,-4.021],[5.370,-4.019],[5.382,-4.016]]},
+  {name:'Boulevard Latrille', zone:'Cocody', sev:'modere', lat:5.36, lng:-3.98, updated:'il y a 11 min',
+    path:[[5.352,-3.992],[5.357,-3.986],[5.363,-3.980],[5.368,-3.973]]},
+  {name:'Carrefour Solibra', zone:'Marcory ↔ Treichville', sev:'modere', lat:5.30, lng:-4.0, updated:'il y a 15 min',
+    path:[[5.294,-4.008],[5.298,-4.003],[5.303,-3.998],[5.307,-3.992]]},
+  {name:'Route de Dabou', zone:'Yopougon', sev:'fluide', lat:5.33, lng:-4.09, updated:'il y a 22 min',
+    path:[[5.320,-4.105],[5.326,-4.098],[5.333,-4.090],[5.340,-4.082]]},
+];
+const sevLabel = {fluide:'Fluide', modere:'Ralentissement', dense:'Bouchon'};
+const sevColor = {fluide:'#31A24C', modere:'#F5A623', dense:'#E0245E'};
+
+let notifications = [
+  {color:'var(--alert)', text:'Votre signalement <b>SR-1040</b> a été marqué comme traité.', time:'il y a 5 min'},
+  {color:'var(--signal)', text:'La Police Nationale a répondu à votre commentaire.', time:'il y a 40 min'},
+  {color:'var(--amber)', text:'Nouvelle alerte dans votre zone : Coupure électricité.', time:'il y a 1 h'},
+];
+
+// ---------- NAV ----------
+const navConfig = {
+  citoyen: [
+    {id:'feed', label:'Fil d\'actualité', icon:'📰'},
+    {id:'traffic', label:'Trafic', icon:'🚦'},
+    {id:'map', label:'Carte', icon:'🗺️'},
+    {id:'create', label:'Signaler un incident', icon:'＋'},
+    {id:'notifs', label:'Notifications', icon:'🔔', badge:3},
+  ],
+  autorite: [
+    {id:'dashboard', label:'Tableau de bord', icon:'📊'},
+    {id:'database', label:'Base de données', icon:'🗄️'},
+    {id:'feed', label:'Fil d\'actualité', icon:'📰'},
+    {id:'traffic', label:'Trafic', icon:'🚦'},
+    {id:'map', label:'Carte opérationnelle', icon:'🗺️'},
+    {id:'notifs', label:'Notifications', icon:'🔔', badge:3},
+  ],
+  admin: [
+    {id:'dashboard', label:'Tableau de bord', icon:'📊'},
+    {id:'database', label:'Base de données', icon:'🗄️'},
+    {id:'feed', label:'Fil d\'actualité', icon:'📰'},
+    {id:'traffic', label:'Trafic', icon:'🚦'},
+    {id:'map', label:'Carte opérationnelle', icon:'🗺️'},
+    {id:'notifs', label:'Notifications', icon:'🔔', badge:3},
+  ]
+};
+
+const titles = {
+  feed:['Fil d\'actualité','Publications et signalements de la communauté'],
+  traffic:['Trafic','État de la circulation signalé par la communauté, en temps réel'],
+  map:['Carte','Localisation des signalements en temps réel'],
+  create:['Signaler un incident','Décrivez la situation, elle sera transmise aux autorités compétentes'],
+  notifs:['Notifications','Vos mises à jour récentes'],
+  dashboard:['Tableau de bord','Vue opérationnelle des dossiers assignés'],
+  database:['Base de données des incidents','Statistiques du jour par défaut · mises à jour en direct · Accès Autorités et Administrateurs uniquement'],
+};
+
+function renderNav(){
+  const nav = document.getElementById('nav');
+  nav.innerHTML = '';
+  navConfig[viewRole].forEach(item=>{
+    const b = document.createElement('button');
+    b.className = item.id===currentView ? 'active':'';
+    b.onclick = ()=>{ currentView=item.id; renderNav(); renderView(); };
+    b.innerHTML = `<span>${item.icon}</span>${item.label}` + (item.badge?`<span class="badge">${item.badge}</span>`:'');
+    nav.appendChild(b);
+  });
+}
+
+function renderView(){
+  document.getElementById('page-title').textContent = titles[currentView][0];
+  document.getElementById('page-sub').textContent = titles[currentView][1];
+  const v = document.getElementById('view');
+  v.innerHTML = '';
+  if(currentView==='feed') renderFeed(v);
+  else if(currentView==='traffic') renderTraffic(v);
+  else if(currentView==='map') renderMap(v);
+  else if(currentView==='create') renderCreate(v);
+  else if(currentView==='notifs') renderNotifs(v);
+  else if(currentView==='dashboard') renderDashboard(v);
+  else if(currentView==='database') renderDatabase(v);
+}
+
+// ---------- TRAFFIC VIEW ----------
+function renderTraffic(v){
+  const quick = document.createElement('div');
+  quick.className = 'quick-report';
+  quick.innerHTML = `<div><b>Un embouteillage sous les yeux ?</b><br>Signalez-le en un clic, ça aide toute la communauté.</div>
+    <button onclick="currentView='create'; renderNav(); renderView(); setTimeout(()=>{const c=document.querySelectorAll('.cat-opt'); c.forEach(x=>{if(x.textContent==='Embouteillage'){x.click();}});},60);">🚦 Signaler</button>`;
+  v.appendChild(quick);
+
+  const legend = document.createElement('div');
+  legend.style.cssText = 'display:flex; gap:16px; margin-bottom:16px; font-size:12px; color:var(--muted); font-weight:600;';
+  legend.innerHTML = `<span><span class="sev-dot sev-fluide" style="display:inline-block; margin-right:5px;"></span>Fluide</span>
+    <span><span class="sev-dot sev-modere" style="display:inline-block; margin-right:5px;"></span>Modéré</span>
+    <span><span class="sev-dot sev-dense" style="display:inline-block; margin-right:5px;"></span>Dense</span>`;
+  v.appendChild(legend);
+
+  trafficSpots.forEach(t=>{
+    const item = document.createElement('div');
+    item.className = 'traffic-item';
+    item.innerHTML = `<div class="sev-dot sev-${t.sev}"></div>
+      <div><div class="traffic-name">${t.name}</div><div class="traffic-meta">${t.zone} · mis à jour ${t.updated}</div></div>
+      <div class="sev-label sev-${t.sev}">${sevLabel[t.sev]}</div>`;
+    v.appendChild(item);
+  });
+}
+
+// ---------- FEED ----------
+function renderFeed(v){
+  const realBox = document.createElement('div');
+  realBox.className = 'real-news-box';
+  realBox.id = 'real-news-box';
+  realBox.innerHTML = `
+    <div class="real-news-head"><span class="live2"></span>ACTUALITÉS RÉELLES — FAITS DIVERS EN CÔTE D'IVOIRE (source : Abidjan.net, flux RSS public)</div>
+    <div id="real-news-list" style="font-size:12.5px; color:var(--muted);">Chargement des vraies actualités...</div>`;
+  v.appendChild(realBox);
+  loadRealNews();
+
+  const banner = document.createElement('div');
+  banner.className = 'integ-banner';
+  banner.innerHTML = `
+    <span style="font-size:18px">🔗</span>
+    <div>
+      <div><b>Intégration partenaires (simulée pour démonstration)</b> — les publications marquées "officiel" représentent ce qu'affichera SafeReport une fois les conventions signées avec chaque institution.</div>
+      <div class="partner-row">
+        ${partners.map(p=>`<div class="partner-pill"><span class="ok"></span>${p.name}</div>`).join('')}
+      </div>
+    </div>`;
+  v.appendChild(banner);
+
+  const filterBar = document.createElement('div');
+  filterBar.className = 'filters';
+  ['tous', ...categories].forEach(c=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeFilter===c?' active':'');
+    chip.textContent = c==='tous' ? 'Tous' : c;
+    chip.onclick = ()=>{ activeFilter=c; renderView(); };
+    filterBar.appendChild(chip);
+  });
+  v.appendChild(filterBar);
+
+  const list = activeFilter==='tous' ? reports : reports.filter(r=>r.cat===activeFilter);
+  if(list.length===0){
+    v.innerHTML += '<div class="empty">Aucune publication dans cette catégorie pour le moment.</div>';
+    return;
+  }
+  list.forEach(r=>{
+    const card = document.createElement('div');
+    card.className = 'card' + (r.official?' official':'');
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="avatar${r.official?' official':''}">${r.init}</div>
+        <div>
+          <div class="card-name">${r.name} ${r.official?'<span class="verified">✔</span>':''}</div>
+          <div class="card-meta">${r.id} · ${r.time}${r.official?' · Source officielle':''}</div>
+        </div>
+        <div class="status ${r.status}">${statusLabel(r.status)}</div>
+      </div>
+      <div class="card-body-text"><strong>${r.title}</strong><br>${r.desc}</div>
+      <div class="card-tags">
+        <span class="tag">${r.cat}</span>
+        <span class="tag loc" onclick="currentView='map'; renderNav(); renderView();">📍 ${r.address}</span>
+      </div>
+      <div class="card-actions">
+        <button onclick="toggleLike(this,'${r.id}')">👍 <span>${r.likes}</span></button>
+        <button onclick="toggleComments('${r.id}')">💬 <span>${r.commentList.length}</span> commentaires</button>
+        <button>↗ Partager</button>
+        <button>🔖 Enregistrer</button>
+      </div>
+      <div class="comments-box" id="comments-${r.id}" style="display:none;"></div>`;
+    v.appendChild(card);
+    if(openComments[r.id]) toggleComments(r.id, true);
+  });
+}
+
+let openComments = {};
+function toggleComments(id, forceOpen){
+  const box = document.getElementById('comments-'+id);
+  const r = reports.find(x=>x.id===id);
+  const willOpen = forceOpen || box.style.display==='none';
+  if(!willOpen){ box.style.display='none'; openComments[id]=false; return; }
+  openComments[id]=true;
+  box.style.display='block';
+  box.innerHTML = r.commentList.map(c=>`
+    <div class="comment">
+      <div class="c-avatar">${c.init}</div>
+      <div>
+        <div class="c-bubble"><div class="c-name">${c.name}${c.official?' ✔':''}</div>${c.text}</div>
+        <div class="c-meta-row"><span>J'aime</span><span>Répondre</span><span>${c.time}</span></div>
+      </div>
+    </div>`).join('') + `
+    <div class="add-comment">
+      <div class="c-avatar">V</div>
+      <input id="input-${id}" type="text" placeholder="Écrire un commentaire..." onkeydown="if(event.key==='Enter')addComment('${id}')">
+      <button onclick="addComment('${id}')">Envoyer</button>
+    </div>`;
+}
+function addComment(id){
+  const input = document.getElementById('input-'+id);
+  const text = input.value.trim();
+  if(!text) return;
+  const r = reports.find(x=>x.id===id);
+  r.commentList.push({name:'Vous', init:'V', text, time:'à l\'instant'});
+  toggleComments(id, true);
+}
+function toggleLike(btn, id){
+  const r = reports.find(x=>x.id===id);
+  const liked = btn.classList.toggle('liked');
+  r.likes += liked ? 1 : -1;
+  btn.querySelector('span').textContent = r.likes;
+}
+function statusLabel(s){ return s==='nouveau'?'NOUVEAU':s==='encours'?'EN COURS':'TRAITÉ'; }
+
+// ---------- ACTUALITÉS RÉELLES (flux RSS public Abidjan.net — Faits Divers) ----------
+let realNewsCache = null;
+async function loadRealNews(){
+  const box = document.getElementById('real-news-list');
+  if(!box) return;
+  if(realNewsCache){ renderRealNews(realNewsCache); return; }
+  try{
+    const feedUrl = 'https://news.abidjan.net/rss/divers.xml';
+    const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feedUrl));
+    const data = await res.json();
+    if(data.status !== 'ok' || !data.items || !data.items.length){ throw new Error('empty'); }
+    realNewsCache = data.items.slice(0,6);
+    renderRealNews(realNewsCache);
+  }catch(e){
+    box.innerHTML = `Flux indisponible pour le moment. Consultez directement <a href="https://news.abidjan.net/flash-infos" target="_blank" style="color:var(--blue); font-weight:600;">Abidjan.net Flash Infos</a>.`;
+  }
+}
+function renderRealNews(items){
+  const box = document.getElementById('real-news-list');
+  if(!box) return;
+  box.innerHTML = items.map(it=>{
+    const d = new Date(it.pubDate);
+    const dateStr = isNaN(d) ? '' : d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+    let tag = 'Actu';
+    if(/pompier/i.test(it.title)) tag = 'Pompiers';
+    else if(/police/i.test(it.title)) tag = 'Police';
+    else if(/officiel/i.test(it.title)) tag = 'Officiel';
+    return `<div class="rn-item">
+      <div class="rn-tag">${tag}</div>
+      <div>
+        <div class="rn-title"><a href="${it.link}" target="_blank" rel="noopener">${it.title}</a></div>
+        <div class="rn-date">${dateStr} · Abidjan.net</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---------- MAP ----------
+let leafletMap = null;
+let poiLayers = {};
+let searchMarker = null;
+let routeLayer = null;
+let routeMarkers = [];
+const poiCategories = [
+  {key:'restaurant', label:'Restaurants', icon:'🍽️', query:'amenity=restaurant'},
+  {key:'pharmacy', label:'Pharmacies', icon:'💊', query:'amenity=pharmacy'},
+  {key:'shop', label:'Boutiques', icon:'🛍️', query:'shop=convenience'},
+  {key:'fuel', label:'Stations', icon:'⛽', query:'amenity=fuel'},
+  {key:'bank', label:'Banques', icon:'🏦', query:'amenity=bank'},
+  {key:'hospital', label:'Santé', icon:'🏥', query:'amenity=hospital'},
+];
+
+function renderMap(v){
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:relative; height:100%;';
+  const box = document.createElement('div');
+  box.id = 'map';
+  wrap.appendChild(box);
+
+  const legend = document.createElement('div');
+  legend.className = 'map-legend';
+  legend.innerHTML = `
+    <div class="ml-title">Légende trafic</div>
+    <div class="ml-row"><span class="ml-line" style="background:${sevColor.dense}"></span>Bouchon</div>
+    <div class="ml-row"><span class="ml-line" style="background:${sevColor.modere}"></span>Ralentissement</div>
+    <div class="ml-row"><span class="ml-line" style="background:${sevColor.fluide}"></span>Fluide</div>
+    <div class="ml-sep"></div>
+    <div class="ml-row"><span class="ml-dot" style="background:#E0245E"></span>Nouveau signalement</div>
+    <div class="ml-row"><span class="ml-dot" style="background:#F5A623"></span>En cours</div>
+    <div class="ml-row"><span class="ml-dot" style="background:#31A24C"></span>Traité</div>`;
+  wrap.appendChild(legend);
+
+  const gps = document.createElement('div');
+  gps.className = 'gps-panel';
+  gps.innerHTML = `
+    <div class="gps-search">
+      <span>🔍</span>
+      <input id="gps-search-input" type="text" placeholder="Adresse, quartier, commune..." onkeydown="if(event.key==='Enter')mapSearchAddress()">
+      <button onclick="mapSearchAddress()">➤</button>
+    </div>
+    <div class="gps-tabs">
+      <div class="gps-tab active" id="tab-poi" onclick="switchGpsTab('poi')">Autour de moi</div>
+      <div class="gps-tab" id="tab-route" onclick="switchGpsTab('route')">Itinéraire</div>
+    </div>
+    <div class="gps-body" id="gps-poi-body">
+      <div class="poi-grid" id="poi-grid"></div>
+      <div class="gps-status" id="poi-status"></div>
+    </div>
+    <div class="gps-body hidden" id="gps-route-body">
+      <div class="route-field"><span class="route-dot" style="background:#31A24C"></span><input id="route-from" type="text" placeholder="Départ (adresse ou commune)"></div>
+      <div class="route-field"><span class="route-dot" style="background:#E0245E"></span><input id="route-to" type="text" placeholder="Arrivée (adresse ou commune)"></div>
+      <button class="btn-primary" style="width:100%; padding:9px;" onclick="mapRoute()">Calculer l'itinéraire</button>
+      <div id="route-result"></div>
+      <div class="gps-status" id="route-status"></div>
+    </div>`;
+  wrap.appendChild(gps);
+  v.appendChild(wrap);
+
+  const grid = gps.querySelector('#poi-grid');
+  poiCategories.forEach(c=>{
+    const chip = document.createElement('div');
+    chip.className = 'poi-chip';
+    chip.id = 'poi-chip-'+c.key;
+    chip.innerHTML = `<span class="ic">${c.icon}</span>${c.label}`;
+    chip.onclick = ()=>togglePOI(c.key);
+    grid.appendChild(chip);
+  });
+
+  setTimeout(()=>{
+    if(leafletMap){ leafletMap.remove(); poiLayers={}; searchMarker=null; routeLayer=null; }
+    leafletMap = L.map('map', {zoomControl:true}).setView([5.348, -4.00], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', className:'map-tiles'
+    }).addTo(leafletMap);
+
+    // routes colorées par niveau de trafic
+    trafficSpots.forEach(t=>{
+      L.polyline(t.path, {color:'#fff', weight:9, opacity:.9}).addTo(leafletMap);
+      const line = L.polyline(t.path, {color:sevColor[t.sev], weight:6, opacity:.92, lineCap:'round'}).addTo(leafletMap);
+      line.bindPopup(`<div class="pop"><div class="pop-title">🚦 ${t.name}</div><div class="pop-row">${t.zone}</div><div class="pop-badge" style="background:${sevColor[t.sev]}22; color:${sevColor[t.sev]}">${sevLabel[t.sev]}</div><div class="pop-time">Mis à jour ${t.updated}</div></div>`, {className:'sr-popup'});
+      if(t.sev==='dense'){
+        const mid = t.path[Math.floor(t.path.length/2)];
+        L.marker(mid, {icon: L.divIcon({className:'pulse-icon', html:'<div class="pulse-ring"></div><div class="pulse-core"></div>', iconSize:[22,22]})}).addTo(leafletMap)
+          .bindPopup(`<div class="pop"><div class="pop-title">⛔ Bouchon signalé</div><div class="pop-row">${t.name}</div></div>`, {className:'sr-popup'});
+      }
+    });
+
+    // signalements
+    reports.forEach(r=>{
+      const color = r.status==='nouveau' ? '#E0245E' : r.status==='encours' ? '#F5A623' : '#31A24C';
+      const icon = L.divIcon({className:'', html:`<div class="report-pin" style="background:${color}"><span>${categoryIcon(r.cat)}</span></div>`, iconSize:[30,30], iconAnchor:[15,28]});
+      const marker = L.marker([r.lat, r.lng], {icon}).addTo(leafletMap);
+      marker.bindPopup(`<div class="pop"><div class="pop-title">${r.title}</div><div class="pop-row">${r.cat} · ${r.address}</div><div class="pop-badge" style="background:${color}22; color:${color}">${statusLabel(r.status)}</div></div>`, {className:'sr-popup'});
+    });
+  }, 50);
+}
+
+function switchGpsTab(tab){
+  document.getElementById('tab-poi').classList.toggle('active', tab==='poi');
+  document.getElementById('tab-route').classList.toggle('active', tab==='route');
+  document.getElementById('gps-poi-body').classList.toggle('hidden', tab!=='poi');
+  document.getElementById('gps-route-body').classList.toggle('hidden', tab!=='route');
+}
+
+// Recherche d'adresse / commune — API gratuite Nominatim (OpenStreetMap)
+async function geocode(query){
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ci&limit=1`;
+  const res = await fetch(url, {headers:{'Accept-Language':'fr'}});
+  const data = await res.json();
+  if(!data.length) return null;
+  return {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), label: data[0].display_name};
+}
+
+async function mapSearchAddress(){
+  const q = document.getElementById('gps-search-input').value.trim();
+  const status = document.getElementById('poi-status');
+  if(!q){ return; }
+  status.textContent = 'Recherche en cours...';
+  try{
+    const loc = await geocode(q + ', Côte d\'Ivoire');
+    if(!loc){ status.textContent = 'Adresse introuvable. Essayez un nom de commune ou quartier.'; return; }
+    if(searchMarker) leafletMap.removeLayer(searchMarker);
+    searchMarker = L.marker([loc.lat, loc.lng], {icon: L.divIcon({className:'', html:'<div class="report-pin" style="background:#1877F2"><span>📍</span></div>', iconSize:[30,30], iconAnchor:[15,28]})}).addTo(leafletMap);
+    searchMarker.bindPopup(`<div class="pop"><div class="pop-title">📍 ${q}</div><div class="pop-row">${loc.label}</div></div>`, {className:'sr-popup'}).openPopup();
+    leafletMap.setView([loc.lat, loc.lng], 15);
+    status.textContent = '';
+  }catch(e){
+    status.textContent = 'Service de recherche indisponible pour le moment.';
+  }
+}
+
+// Commerces à proximité — API gratuite Overpass (données OpenStreetMap)
+async function togglePOI(key){
+  const chip = document.getElementById('poi-chip-'+key);
+  const status = document.getElementById('poi-status');
+  if(poiLayers[key]){
+    leafletMap.removeLayer(poiLayers[key]);
+    delete poiLayers[key];
+    chip.classList.remove('on');
+    return;
+  }
+  chip.classList.add('on');
+  status.textContent = 'Chargement des commerces...';
+  const cat = poiCategories.find(c=>c.key===key);
+  const b = leafletMap.getBounds();
+  const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+  const overpassQuery = `[out:json][timeout:15];node[${cat.query}](${bbox});out 40;`;
+  try{
+    const res = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body: overpassQuery});
+    const data = await res.json();
+    const group = L.layerGroup();
+    (data.elements||[]).forEach(el=>{
+      const name = (el.tags && el.tags.name) ? el.tags.name : cat.label.replace(/s$/,'');
+      const icon = L.divIcon({className:'', html:`<div class="report-pin" style="background:#fff; border-color:#65676B;"><span>${cat.icon}</span></div>`, iconSize:[26,26], iconAnchor:[13,24]});
+      L.marker([el.lat, el.lon], {icon}).addTo(group).bindPopup(`<div class="pop"><div class="pop-title">${cat.icon} ${name}</div><div class="pop-row">${cat.label}</div></div>`, {className:'sr-popup'});
+    });
+    group.addTo(leafletMap);
+    poiLayers[key] = group;
+    status.textContent = data.elements && data.elements.length ? `${data.elements.length} résultat(s) affiché(s) dans la zone visible.` : 'Aucun résultat dans la zone visible — zoomez ou déplacez la carte.';
+  }catch(e){
+    chip.classList.remove('on');
+    status.textContent = 'Service de données indisponible pour le moment. Réessayez.';
+  }
+}
+
+// Itinéraire — géocodage Nominatim + calcul OSRM (gratuit, démo publique)
+async function mapRoute(){
+  const from = document.getElementById('route-from').value.trim();
+  const to = document.getElementById('route-to').value.trim();
+  const status = document.getElementById('route-status');
+  const result = document.getElementById('route-result');
+  result.innerHTML = '';
+  if(!from || !to){ status.textContent = 'Renseignez un départ et une arrivée.'; return; }
+  status.textContent = 'Calcul de l\'itinéraire...';
+  try{
+    const [a, b] = await Promise.all([geocode(from+', Côte d\'Ivoire'), geocode(to+', Côte d\'Ivoire')]);
+    if(!a || !b){ status.textContent = 'Une des adresses est introuvable.'; return; }
+    const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if(!data.routes || !data.routes.length){ status.textContent = 'Aucun itinéraire trouvé.'; return; }
+    const route = data.routes[0];
+    if(routeLayer) leafletMap.removeLayer(routeLayer);
+    routeMarkers.forEach(m=>leafletMap.removeLayer(m));
+    routeMarkers = [];
+    const coords = route.geometry.coordinates.map(c=>[c[1], c[0]]);
+    routeLayer = L.polyline(coords, {color:'#1877F2', weight:6, opacity:.9}).addTo(leafletMap);
+    const mA = L.marker([a.lat,a.lng], {icon:L.divIcon({className:'', html:'<div class="report-pin" style="background:#31A24C"><span>A</span></div>', iconSize:[28,28], iconAnchor:[14,26]})}).addTo(leafletMap);
+    const mB = L.marker([b.lat,b.lng], {icon:L.divIcon({className:'', html:'<div class="report-pin" style="background:#E0245E"><span>B</span></div>', iconSize:[28,28], iconAnchor:[14,26]})}).addTo(leafletMap);
+    routeMarkers = [mA, mB];
+    leafletMap.fitBounds(routeLayer.getBounds(), {padding:[40,40]});
+    const km = (route.distance/1000).toFixed(1);
+    const min = Math.round(route.duration/60);
+    result.innerHTML = `<div class="route-result">🚗 ${km} km · environ ${min} min de trajet</div>`;
+    status.textContent = '';
+  }catch(e){
+    status.textContent = 'Service d\'itinéraire indisponible pour le moment.';
+  }
+}
+function categoryIcon(cat){
+  const map = {'Incendie':'🔥','Accident':'🚗','Inondation':'🌊','Agression':'🚨','Embouteillage':'🚦','Objet perdu':'🔍','Route impraticable':'⚠️','Coupure électricité':'⚡','Alerte sanitaire':'🩺'};
+  return map[cat] || '📍';
+}
+
+// ---------- CREATE ----------
+function renderCreate(v){
+  selectedCat = null;
+  v.innerHTML = `
+    <div class="form-box">
+      <div class="field">
+        <label>Titre du signalement</label>
+        <input id="f-title" type="text" placeholder="Ex : Accident de la circulation sur le boulevard...">
+      </div>
+      <div class="field">
+        <label>Catégorie</label>
+        <div class="cat-grid" id="f-cats"></div>
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="f-desc" placeholder="Décrivez ce qui se passe, où, et depuis quand..."></textarea>
+      </div>
+      <div class="field">
+        <label>Localisation</label>
+        <input id="f-loc" type="text" placeholder="Ex : Riviera 3, Abidjan">
+        <div class="hint">La géolocalisation précise sera activée en production.</div>
+      </div>
+      <div class="field">
+        <label>Preuves (photo / vidéo)</label>
+        <input type="file" id="f-file">
+      </div>
+      <button class="btn-primary" onclick="submitReport()">Publier le signalement</button>
+    </div>`;
+  const catBox = document.getElementById('f-cats');
+  categories.forEach(c=>{
+    const d = document.createElement('div');
+    d.className = 'cat-opt';
+    d.textContent = c;
+    d.onclick = ()=>{
+      document.querySelectorAll('.cat-opt').forEach(x=>x.classList.remove('sel'));
+      d.classList.add('sel');
+      selectedCat = c;
+    };
+    catBox.appendChild(d);
+  });
+}
+function submitReport(){
+  const title = document.getElementById('f-title').value.trim();
+  const desc = document.getElementById('f-desc').value.trim();
+  const loc = document.getElementById('f-loc').value.trim();
+  if(!title || !selectedCat){
+    alert('Merci de renseigner au moins un titre et une catégorie.');
+    return;
+  }
+  const r = {
+    id:'SR-'+(nextIdNum++), name:'Vous', init:'V',
+    title, cat:selectedCat, status:'nouveau', time:'à l\'instant',
+    likes:0, comments:0, lat:5.34+(Math.random()-0.5)*0.1, lng:-4.0+(Math.random()-0.5)*0.1,
+    address: loc || 'Localisation non précisée',
+    desc: desc || 'Aucune description complémentaire.',
+    official:false, commentList:[]
+  };
+  reports.unshift(r);
+  allIncidentsDB.unshift({id:r.id, title:r.title, cat:r.cat, status:r.status, author:r.name, official:false, daysAgo:0, address:r.address, resTime:null});
+  pushTicker(r);
+  currentView='feed'; activeFilter='tous';
+  renderNav(); renderView();
+}
+
+// ---------- NOTIFS ----------
+function renderNotifs(v){
+  const box = document.createElement('div');
+  notifications.forEach(n=>{
+    const el = document.createElement('div');
+    el.className='notif';
+    el.innerHTML = `<div class="dot2" style="background:${n.color}"></div>
+      <div><div class="txt">${n.text}</div><div class="time">${n.time}</div></div>`;
+    box.appendChild(el);
+  });
+  v.appendChild(box);
+}
+
+// ---------- DASHBOARD (autorité) ----------
+function renderDashboard(v){
+  const nouveau = reports.filter(r=>r.status==='nouveau').length;
+  const encours = reports.filter(r=>r.status==='encours').length;
+  const traite = reports.filter(r=>r.status==='traite').length;
+
+  const stats = document.createElement('div');
+  stats.className = 'stat-row';
+  stats.innerHTML = `
+    <div class="stat"><div class="num">${reports.length}</div><div class="lbl">Total dossiers</div></div>
+    <div class="stat"><div class="num" style="color:var(--alert)">${nouveau}</div><div class="lbl">Nouveaux</div></div>
+    <div class="stat"><div class="num" style="color:var(--amber)">${encours}</div><div class="lbl">En cours</div></div>
+    <div class="stat"><div class="num" style="color:var(--signal)">${traite}</div><div class="lbl">Traités</div></div>`;
+  v.appendChild(stats);
+
+  const st = document.createElement('div');
+  st.className = 'section-title';
+  st.textContent = 'Dossiers assignés';
+  v.appendChild(st);
+
+  const table = document.createElement('table');
+  table.innerHTML = `<tr><th>ID</th><th>Titre</th><th>Catégorie</th><th>Auteur</th><th>Statut</th></tr>`;
+  reports.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-family:var(--mono); font-size:11.5px; color:var(--muted)">${r.id}</td>
+      <td>${r.title}</td><td>${r.cat}</td><td>${r.name}</td>
+      <td><select class="status-select" onchange="changeStatus('${r.id}', this.value)">
+        <option value="nouveau" ${r.status==='nouveau'?'selected':''}>NOUVEAU</option>
+        <option value="encours" ${r.status==='encours'?'selected':''}>EN COURS</option>
+        <option value="traite" ${r.status==='traite'?'selected':''}>TRAITÉ</option>
+      </select></td>`;
+    table.appendChild(tr);
+  });
+  v.appendChild(table);
+}
+function changeStatus(id, val){
+  const r = reports.find(x=>x.id===id);
+  r.status = val;
+  const dbEntry = allIncidentsDB.find(x=>x.id===id);
+  if(dbEntry){
+    dbEntry.status = val;
+    if(val==='traite' && !dbEntry.resTime) dbEntry.resTime = 15+Math.floor(Math.random()*90);
+  }
+  if(currentView==='dashboard') renderView();
+  if(currentView==='database') renderView();
+}
+
+// ---------- BASE DE DONNÉES DES INCIDENTS (accès Autorité + Admin uniquement) ----------
+function filterIncidentsDB(){
+  return allIncidentsDB.filter(inc=>{
+    if(dbPeriod!=='all' && inc.daysAgo > parseInt(dbPeriod)) return false;
+    if(dbCat!=='tous' && inc.cat!==dbCat) return false;
+    if(dbCommune!=='toutes' && !inc.address.includes(dbCommune)) return false;
+    if(dbSearch && !(inc.id.toLowerCase().includes(dbSearch.toLowerCase()) || inc.title.toLowerCase().includes(dbSearch.toLowerCase()))) return false;
+    return true;
+  });
+}
+
+function renderDatabase(v){
+  const restrict = document.createElement('div');
+  restrict.className = 'integ-banner';
+  restrict.innerHTML = `<span style="font-size:18px">🔒</span>
+    <div><b>Accès restreint</b> — cette base de données et ces indicateurs ne sont visibles que par les comptes Autorité et Administrateur. Les citoyens n'y ont pas accès.</div>`;
+  v.appendChild(restrict);
+
+  const filterBar = document.createElement('div');
+  filterBar.className = 'db-filters';
+  filterBar.innerHTML = `
+    <select onchange="dbPeriod=this.value; renderView();">
+      <option value="1" ${dbPeriod==='1'?'selected':''}>Aujourd'hui</option>
+      <option value="7" ${dbPeriod==='7'?'selected':''}>7 derniers jours</option>
+      <option value="30" ${dbPeriod==='30'?'selected':''}>30 derniers jours</option>
+      <option value="90" ${dbPeriod==='90'?'selected':''}>90 derniers jours</option>
+      <option value="all" ${dbPeriod==='all'?'selected':''}>Toute la période</option>
+    </select>
+    <select onchange="dbCat=this.value; renderView();">
+      <option value="tous">Toutes catégories</option>
+      ${categories.map(c=>`<option value="${c}" ${dbCat===c?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <select onchange="dbCommune=this.value; renderView();">
+      ${dbCommunesList.map(c=>`<option value="${c}" ${dbCommune===c?'selected':''}>${c==='toutes'?'Toutes communes':c}</option>`).join('')}
+    </select>
+    <input type="text" placeholder="Rechercher un ID ou un titre..." value="${dbSearch}" oninput="dbSearch=this.value; renderDbTableOnly();">`;
+  v.appendChild(filterBar);
+
+  const filtered = filterIncidentsDB();
+  const total = filtered.length;
+  const resolved = filtered.filter(i=>i.status==='traite');
+  const resRate = total ? Math.round(resolved.length/total*100) : 0;
+  const avgTime = resolved.length ? Math.round(resolved.reduce((s,i)=>s+(i.resTime||60),0)/resolved.length) : 0;
+  const active = total - resolved.length;
+
+  const kpis = document.createElement('div');
+  kpis.className = 'stat-row';
+  kpis.innerHTML = `
+    <div class="stat"><div class="num">${total}</div><div class="lbl">Incidents (période)</div></div>
+    <div class="stat"><div class="num" style="color:var(--signal)">${resRate}%</div><div class="lbl">Taux de résolution</div></div>
+    <div class="stat"><div class="num" style="color:#B87A00">${avgTime} min</div><div class="lbl">Temps moyen de traitement</div></div>
+    <div class="stat"><div class="num" style="color:var(--alert)">${active}</div><div class="lbl">Incidents actifs</div></div>`;
+  v.appendChild(kpis);
+
+  const chartGrid = document.createElement('div');
+  chartGrid.className = 'chart-grid';
+  chartGrid.innerHTML = `
+    <div class="chart-card"><h4>Incidents par catégorie</h4><div class="chart-wrap"><canvas id="chart-cat"></canvas></div></div>
+    <div class="chart-card"><h4>Répartition par statut</h4><div class="chart-wrap"><canvas id="chart-status"></canvas></div></div>
+    <div class="chart-card chart-row-full"><h4>Évolution du nombre de signalements</h4><div class="chart-wrap tall"><canvas id="chart-trend"></canvas></div></div>`;
+  v.appendChild(chartGrid);
+
+  const tableTitle = document.createElement('div');
+  tableTitle.style.cssText = 'display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;';
+  tableTitle.innerHTML = `<div class="section-title" id="db-table-title" style="margin-bottom:0;">Registre des incidents (${total} résultat${total>1?'s':''})</div>
+    <button class="btn-primary" style="padding:9px 16px; font-size:12.5px; display:flex; align-items:center; gap:6px;" onclick="exportRegisterPDF()">📄 Exporter en PDF</button>`;
+  v.appendChild(tableTitle);
+
+  const table = document.createElement('table');
+  table.id = 'db-table';
+  v.appendChild(table);
+  renderDbTableOnly();
+
+  setTimeout(()=>{
+    const catCounts = {};
+    categories.forEach(c=>catCounts[c]=0);
+    filtered.forEach(i=>catCounts[i.cat]=(catCounts[i.cat]||0)+1);
+    new Chart(document.getElementById('chart-cat'), {
+      type:'bar',
+      data:{labels:Object.keys(catCounts), datasets:[{label:'Incidents', data:Object.values(catCounts), backgroundColor:'#1877F2', borderRadius:6, maxBarThickness:28}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{precision:0}}, x:{ticks:{font:{size:10}}}}}
+    });
+    new Chart(document.getElementById('chart-status'), {
+      type:'doughnut',
+      data:{labels:['Nouveau','En cours','Traité'], datasets:[{data:[
+        filtered.filter(i=>i.status==='nouveau').length,
+        filtered.filter(i=>i.status==='encours').length,
+        filtered.filter(i=>i.status==='traite').length
+      ], backgroundColor:['#E0245E','#F5A623','#31A24C'], borderWidth:0}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}}, cutout:'62%'}
+    });
+    const days = dbPeriod==='all' ? 30 : Math.max(parseInt(dbPeriod),7);
+    const bucket = new Array(days).fill(0);
+    filtered.forEach(i=>{ if(i.daysAgo<days) bucket[days-1-i.daysAgo]++; });
+    const labels = bucket.map((_,idx)=> idx===days-1 ? 'Auj.' : `J-${days-1-idx}`);
+    new Chart(document.getElementById('chart-trend'), {
+      type:'line',
+      data:{labels, datasets:[{label:'Signalements', data:bucket, borderColor:'#1877F2', backgroundColor:'rgba(24,119,242,0.12)', fill:true, tension:.35, pointRadius:2}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{precision:0}}, x:{ticks:{font:{size:10}, maxTicksLimit:12}}}}
+    });
+  }, 30);
+}
+
+function dbPeriodLabel(){
+  return {'1':"Aujourd'hui",'7':'7 derniers jours','30':'30 derniers jours','90':'90 derniers jours','all':'Toute la période'}[dbPeriod] || dbPeriod;
+}
+function exportRegisterPDF(){
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const filtered = filterIncidentsDB();
+    doc.setFontSize(16);
+    doc.setTextColor(24,119,242);
+    doc.text('SafeReport — Registre des incidents', 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(90);
+    doc.text(`Période : ${dbPeriodLabel()}  ·  Catégorie : ${dbCat==='tous'?'Toutes':dbCat}  ·  Commune : ${dbCommune==='toutes'?'Toutes':dbCommune}`, 14, 25);
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR').slice(0,5)}  ·  ${filtered.length} incident(s)  ·  Document réservé aux autorités et administrateurs`, 14, 30);
+    doc.autoTable({
+      startY: 36,
+      head: [['ID','Date','Titre','Catégorie','Commune','Source','Statut']],
+      body: filtered.slice(0,300).map(i=>[
+        i.id,
+        i.daysAgo===0 ? "Aujourd'hui" : 'Il y a '+i.daysAgo+' j',
+        i.title,
+        i.cat,
+        i.address.split(',')[0],
+        i.official ? 'Officiel — '+i.author : i.author,
+        statusLabel(i.status)
+      ]),
+      styles:{fontSize:8, cellPadding:3},
+      headStyles:{fillColor:[24,119,242], textColor:255, fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[247,249,252]},
+      columnStyles:{2:{cellWidth:50}}
+    });
+    doc.save(`safereport_registre_${new Date().toISOString().slice(0,10)}.pdf`);
+  }catch(e){
+    alert('Export PDF indisponible pour le moment. Réessayez.');
+  }
+}
+function renderDbTableOnly(){
+  const table = document.getElementById('db-table');
+  if(!table) return;
+  let filtered = filterIncidentsDB();
+  const title = document.getElementById('db-table-title');
+  if(title) title.textContent = `Registre des incidents (${filtered.length} résultat${filtered.length>1?'s':''})`;
+  const shown = filtered.slice(0,60);
+  table.innerHTML = `<tr><th>ID</th><th>Date</th><th>Titre</th><th>Catégorie</th><th>Commune</th><th>Source</th><th>Statut</th></tr>` +
+    shown.map(i=>`<tr>
+      <td style="font-family:var(--mono); font-size:11.5px; color:var(--muted)">${i.id}</td>
+      <td>${i.daysAgo===0?"Aujourd'hui":'Il y a '+i.daysAgo+' j'}</td>
+      <td>${i.title}</td>
+      <td>${i.cat}</td>
+      <td>${i.address.split(',')[0]}</td>
+      <td>${i.official?'✔ '+i.author:i.author}</td>
+      <td><span class="status ${i.status}" style="margin-left:0;">${statusLabel(i.status)}</span></td>
+    </tr>`).join('') + (filtered.length>60 ? `<tr><td colspan="7" style="text-align:center; color:var(--muted); font-size:12px;">+ ${filtered.length-60} autres résultats — affinez les filtres pour les voir.</td></tr>` : '');
+}
+
+// ---------- TICKER ----------
+function pushTicker(r){
+  const list = document.getElementById('ticker-list');
+  const el = document.createElement('div');
+  el.className = 'tick';
+  el.innerHTML = `<div class="t-time">${r.id} · ${r.time}</div><div class="t-title">${r.title}</div>`;
+  list.prepend(el);
+  while(list.children.length > 8) list.removeChild(list.lastChild);
+}
+
+// init ticker with existing reports
+function initTicker(){
+  const list = document.getElementById('ticker-list');
+  list.innerHTML = '';
+  reports.slice(0,6).forEach(r=>pushTickerEl(r));
+}
+function pushTickerEl(r){
+  const list = document.getElementById('ticker-list');
+  const el = document.createElement('div');
+  el.className = 'tick' + (r.official?' official':'');
+  el.style.cursor = 'pointer';
+  el.onclick = ()=>openDetailModal(r.id);
+  el.innerHTML = `<div class="t-time">${r.official?`<span class="t-src">${r.name.toUpperCase()}</span>`:''}${r.id} · ${r.time}</div><div class="t-title">${r.title}</div>`;
+  list.prepend(el);
+  while(list.children.length > 8) list.removeChild(list.lastChild);
+}
+function pushTicker(r){ pushTickerEl(r); }
+
+// ---------- DETAIL MODAL ----------
+function openDetailModal(id){
+  const r = reports.find(x=>x.id===id);
+  if(!r) return;
+  const el = document.getElementById('modal-content');
+  el.innerHTML = `
+    <div class="card-top" style="margin-top:6px;">
+      <div class="avatar${r.official?' official':''}">${r.init}</div>
+      <div>
+        <div class="card-name">${r.name} ${r.official?'<span class="verified">✔</span>':''}</div>
+        <div class="card-meta">${r.id} · ${r.time}${r.official?' · Source officielle':''}</div>
+      </div>
+      <div class="status ${r.status}">${statusLabel(r.status)}</div>
+    </div>
+    <div class="card-body-text" style="font-size:15px; margin-top:10px;"><strong>${r.title}</strong><br>${r.desc}</div>
+    <div class="card-tags">
+      <span class="tag">${categoryIcon(r.cat)} ${r.cat}</span>
+      <span class="tag loc" onclick="closeModal(); currentView='map'; renderNav(); renderView();">📍 ${r.address}</span>
+    </div>
+    <div class="card-actions">
+      <button onclick="toggleLike(this,'${r.id}')">👍 <span>${r.likes}</span></button>
+      <button>↗ Partager</button>
+      <button>🔖 Enregistrer</button>
+    </div>
+    <div class="comments-box" id="modal-comments-${r.id}" style="display:block;"></div>`;
+  renderModalComments(r.id);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+function renderModalComments(id){
+  const box = document.getElementById('modal-comments-'+id);
+  const r = reports.find(x=>x.id===id);
+  box.innerHTML = (r.commentList.length ? r.commentList.map(c=>`
+    <div class="comment">
+      <div class="c-avatar">${c.init}</div>
+      <div>
+        <div class="c-bubble"><div class="c-name">${c.name}${c.official?' ✔':''}</div>${c.text}</div>
+        <div class="c-meta-row"><span>J'aime</span><span>Répondre</span><span>${c.time}</span></div>
+      </div>
+    </div>`).join('') : '<div class="hint" style="margin-bottom:8px;">Aucun commentaire pour le moment. Soyez le premier à réagir.</div>') + `
+    <div class="add-comment">
+      <div class="c-avatar">V</div>
+      <input id="modal-input-${id}" type="text" placeholder="Écrire un commentaire..." onkeydown="if(event.key==='Enter')addModalComment('${id}')">
+      <button onclick="addModalComment('${id}')">Envoyer</button>
+    </div>`;
+}
+function addModalComment(id){
+  const input = document.getElementById('modal-input-'+id);
+  const text = input.value.trim();
+  if(!text) return;
+  const r = reports.find(x=>x.id===id);
+  r.commentList.push({name:'Vous', init:'V', text, time:'à l\'instant'});
+  renderModalComments(id);
+}
+
+// simulate live incoming reports occasionally — mix of citizen posts and
+// "official partner" feeds (Police Nationale / Sapeurs-Pompiers / Police Secours)
+const simTitles = [
+  {t:'Embouteillage important signalé sur l\'autoroute du Nord', c:'Route impraticable', official:false},
+  {t:'Objet trouvé près de la gare de Treichville', c:'Objet perdu', official:false},
+  {t:'Alerte sanitaire : cas suspects rapportés à Marcory', c:'Alerte sanitaire', official:false},
+];
+const simOfficial = [
+  {t:'Intervention pompiers en cours — fuite de gaz à Abobo', c:'Incendie', partner:'Sapeurs-Pompiers'},
+  {t:'Contrôle routier renforcé ce soir sur le pont Houphouët-Boigny', c:'Route impraticable', partner:'Police Nationale'},
+  {t:'Alerte diffusée : personne disparue, quartier de Koumassi', c:'Agression', partner:'Police Secours'},
+];
+setInterval(()=>{
+  const useOfficial = Math.random() < 0.4;
+  let r;
+  if(useOfficial){
+    const s = simOfficial[Math.floor(Math.random()*simOfficial.length)];
+    const p = partners.find(x=>x.name===s.partner);
+    r = {id:'SR-'+(nextIdNum++), name:s.partner, init:p.init, title:s.t, cat:s.c,
+      status:'nouveau', time:'à l\'instant', likes:0, comments:0,
+      lat:5.34+(Math.random()-0.5)*0.15, lng:-4.0+(Math.random()-0.5)*0.15,
+      address:'Abidjan (position approximative)',
+      desc:'Diffusion automatique reçue via le canal d\'intégration partenaire (simulée).', official:true, commentList:[]};
+  } else {
+    const s = simTitles[Math.floor(Math.random()*simTitles.length)];
+    r = {id:'SR-'+(nextIdNum++), name:'Citoyen anonyme', init:'CA', title:s.t, cat:s.c,
+      status:'nouveau', time:'à l\'instant', likes:0, comments:0,
+      lat:5.34+(Math.random()-0.5)*0.15, lng:-4.0+(Math.random()-0.5)*0.15,
+      address:'Abidjan (position approximative)',
+      desc:'Signalement automatique de démonstration.', official:false, commentList:[]};
+  }
+  reports.unshift(r);
+  allIncidentsDB.unshift({id:r.id, title:r.title, cat:r.cat, status:r.status, author:r.name, official:r.official, daysAgo:0, address:r.address, resTime:null});
+  pushTickerEl(r);
+  if(currentView==='feed' && activeFilter==='tous') renderView();
+  if(currentView==='dashboard') renderView();
+  if(currentView==='database') renderView();
+}, 12000);
+
+// ---------- AUTHENTIFICATION (accès verrouillé par compte) ----------
+const DEMO_PASSWORDS = { autorite:'demo2026', admin:'admin2027#' };
+let loginSelectedRole = null;
+let viewRole = 'citoyen'; // vue affichée (l'admin peut la changer sans se déconnecter)
+
+function populateSignupDates(){
+  const day = document.getElementById('su-day');
+  const year = document.getElementById('su-year');
+  if(day.children.length===0){
+    for(let d=1; d<=31; d++) day.innerHTML += `<option value="${d}">${d}</option>`;
+  }
+  if(year.children.length===0){
+    const now = new Date().getFullYear();
+    for(let y=now-13; y>=now-90; y--) year.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+}
+populateSignupDates();
+
+function selectLoginRole(r){
+  document.querySelectorAll('.login-opt').forEach(o=>o.classList.remove('sel'));
+  event.currentTarget.classList.add('sel');
+  loginSelectedRole = r;
+  document.getElementById('login-step-role').style.display = 'none';
+  if(r==='citoyen'){
+    document.getElementById('login-step-signup').style.display = 'block';
+    return;
+  }
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-pw-label').textContent = r==='admin' ? 'Mot de passe administrateur' : 'Mot de passe professionnel (Autorité)';
+  document.getElementById('login-password-box').style.display = 'block';
+}
+
+function backToRoleChoice(){
+  document.getElementById('login-step-role').style.display = 'block';
+  document.getElementById('login-step-signup').style.display = 'none';
+  document.getElementById('login-password-box').style.display = 'none';
+  document.querySelectorAll('.login-opt').forEach(o=>o.classList.remove('sel'));
+}
+
+function submitCitizenSignup(){
+  const first = document.getElementById('su-first').value.trim();
+  const last = document.getElementById('su-last').value.trim();
+  const contact = document.getElementById('su-contact').value.trim();
+  const pass = document.getElementById('su-pass').value;
+  if(!first || !last || !contact || !pass){
+    document.getElementById('signup-error').style.display = 'block';
+    return;
+  }
+  loginSuccess('citoyen', `${first} ${last}`);
+}
+
+function confirmLogin(){
+  const pw = document.getElementById('login-password').value;
+  if(pw === DEMO_PASSWORDS[loginSelectedRole]){
+    loginSuccess(loginSelectedRole);
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function loginSuccess(r, displayName){
+  role = r;
+  viewRole = r;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'flex';
+  renderSessionBox(displayName);
+  currentView = (viewRole==='autorite' || viewRole==='admin') ? 'dashboard' : 'feed';
+  renderNav();
+  renderView();
+  initTicker();
+  animateStats();
+}
+
+function renderSessionBox(displayName){
+  const roleNames = {citoyen:'Citoyen', autorite:'Autorité', admin:'Administrateur'};
+  const roleInit = {citoyen:'C', autorite:'A', admin:'AD'};
+  const box = document.getElementById('session-box-inner');
+  let switcherHtml = '';
+  if(role==='admin'){
+    switcherHtml = `
+      <div class="admin-viewswitch">
+        <div class="avs-label">Vue affichée (accès total admin)</div>
+        <div class="avs-row">
+          <button class="avs-btn ${viewRole==='citoyen'?'on':''}" onclick="setViewRole('citoyen')">Citoyen</button>
+          <button class="avs-btn ${viewRole==='autorite'?'on':''}" onclick="setViewRole('autorite')">Autorité</button>
+          <button class="avs-btn ${viewRole==='admin'?'on':''}" onclick="setViewRole('admin')">Admin</button>
+        </div>
+      </div>`;
+  }
+  box.innerHTML = `
+    <div class="session-box-row">
+      <div class="session-ava">${roleInit[viewRole]}</div>
+      <div>
+        <div class="session-role">${displayName ? displayName : roleNames[viewRole]}${role==='admin' && viewRole!=='admin' ? ' <span class="admin-tag">via Admin</span>' : ''}</div>
+        <div class="session-logout" onclick="logout()">Se déconnecter</div>
+      </div>
+    </div>` + switcherHtml;
+}
+
+function setViewRole(r){
+  viewRole = r;
+  renderSessionBox();
+  currentView = (viewRole==='autorite' || viewRole==='admin') ? 'dashboard' : 'feed';
+  renderNav();
+  renderView();
+}
+
+function logout(){
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-step-role').style.display = 'block';
+  document.getElementById('login-step-signup').style.display = 'none';
+  document.getElementById('login-password-box').style.display = 'none';
+  document.querySelectorAll('.login-opt').forEach(o=>o.classList.remove('sel'));
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('signup-error').style.display = 'none';
+  loginSelectedRole = null;
+}
+
+function animateStats(){
+  countUp('stat-users', 0, 12480, 1200, v=>v.toLocaleString('fr-FR'));
+  countUp('stat-resolved', 0, 3214, 1200, v=>v.toLocaleString('fr-FR'));
+  countUp('stat-partners', 0, 3, 700, v=>v);
+  setTimeout(()=>{ document.getElementById('stat-time').textContent = '8 min'; }, 500);
+}
+function countUp(id, from, to, duration, fmt){
+  const el = document.getElementById(id);
+  const start = performance.now();
+  function step(now){
+    const p = Math.min((now-start)/duration, 1);
+    const eased = 1 - Math.pow(1-p, 3);
+    const val = Math.round(from + (to-from)*eased);
+    el.textContent = fmt ? fmt(val) : val;
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+</script>
+</body>
+</html>
